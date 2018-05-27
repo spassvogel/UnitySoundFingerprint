@@ -1,6 +1,6 @@
 
 
-This is a test suite linking `soundfingerprinting` (https://github.com/AddictedCS/soundfingerprinting) c# library to Unity.
+This is a test suite linking `soundfingerprinting` (https://github.com/AddictedCS/soundfingerprinting) c# library to a Unity3D project.
 
 
 
