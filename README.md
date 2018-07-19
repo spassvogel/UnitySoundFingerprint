@@ -17,7 +17,7 @@ NOTE:
 
 Make sure the sample has the following import settings:
 
-Load type: `Decompress on Load`
-Preload Audio Data: true
-Compression Format: `PCM`
+- Load type: `Decompress on Load`
+- Preload Audio Data: true
+- Compression Format: `PCM`
 
