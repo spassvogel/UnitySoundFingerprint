@@ -13,3 +13,11 @@ How to run?
 * Run the Unity project in the Unity Editor
 * Every 3 seconds it will attempt to match the sound it hears through the microphone with the stored sample (see Console)
 
+NOTE:
+
+Make sure the sample has the following import settings:
+
+Load type: `Decompress on Load`
+Preload Audio Data: true
+Compression Format: `PCM`
+

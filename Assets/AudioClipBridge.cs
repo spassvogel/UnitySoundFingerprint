@@ -13,7 +13,6 @@ public static class AudioClipBridge {
         var samples = new float[clip.samples];
         clip.GetData(samples, startAt);
 
-        float[] monoSamples = ToMonoSamples(samples, clip);
         float[] downsampled = ToTargetSampleRate(samples, clip.frequency, sampleRate);
         audioSamplesNormalizer.NormalizeInPlace(downsampled);
         

@@ -1,8 +1,6 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine;
-using System.Collections;
 using System;
 using SoundFingerprinting;
 using SoundFingerprinting.InMemory;
@@ -11,24 +9,27 @@ using SoundFingerprinting.DAO.Data;
 using SoundFingerprinting.Builder;
 using System.IO;
 using SoundFingerprinting.Query;
+using System.Text.RegularExpressions;
 
 public class Fingerprinter : MonoBehaviour {
 	
     public float trimCutoff = .01f;  	// Minimum volume of the clip before it gets trimmed    
-
+	public AudioClip original;
+	public bool trim;
+	public UnityEngine.UI.Text debugText;
+	public int sampleTime = 5;
 
 	private AudioSource audioSource; 
 	private string micName = null;
-	private int sampleTime = 3;
-	private int sampleRate = 44100;
-
-	private float[] mAudioBuffer = null;
+	private int sampleRate = 11025 ;
+	private int counter = 0;
 
 	private readonly IModelService modelService = new InMemoryModelService(); // store fingerprints in RAM
 	private readonly IAudioService audioService = new SoundFingerprintingAudioService(); // default audio library
 	
 	void Start() {
-		StoreAudioFileFingerprintsInStorageForLaterRetrieval(Path.Combine(Application.streamingAssetsPath, "sweden.wav"));
+		//  StoreAudioFileFingerprintsInStorageForLaterRetrieval(Path.Combine(Application.streamingAssetsPath, "sweden.wav"));
+		StoreAudioClipFingerprintsInStorageForLaterRetrieval(original);
 
 		if (Microphone.devices == null || Microphone.devices.Length < 1) {
 			Debug.LogError ("Microphone init error");
@@ -56,6 +57,27 @@ public class Fingerprinter : MonoBehaviour {
 	}
 
 
+	public void StoreAudioClipFingerprintsInStorageForLaterRetrieval(AudioClip clip)
+	{
+		var track = new TrackData("unknown", "ARTIST", "TRACK", "ALBUM", 1988, 290);
+		var audioSamples = AudioClipBridge.AudioClipToAudioSamples(clip);
+
+//Debug.Log("Storing reference file (samples: " + audioSamples.Samples.Length);
+		// store track metadata in the datasource
+		var trackReference = modelService.InsertTrack(track);
+
+		// create hashed fingerprints
+		var hashedFingerprints = FingerprintCommandBuilder.Instance
+			.BuildFingerprintCommand()
+			.From(audioSamples)
+			.UsingServices(audioService)
+			.Hash()
+			.Result;
+								
+		// store hashes in the database for later retrieval
+		modelService.InsertHashDataForTrack(hashedFingerprints, trackReference);
+	}
+
 	public void StoreAudioFileFingerprintsInStorageForLaterRetrieval(string pathToAudioFile)
 	{
 		var track = new TrackData("unknown", "ARTIST", "TRACK", "ALBUM", 1988, 290);
@@ -77,6 +99,9 @@ public class Fingerprinter : MonoBehaviour {
 
 	public bool StartRecord()
 	{
+		string text = debugText.text;
+		text = Regex.Replace(text, @"\((\d+)\)", "("+ ++counter +")");
+		debugText.text = text;
 
 		audioSource.clip = Microphone.Start (micName, false, 999, this.sampleRate);
 		Invoke("StopRecord", sampleTime);
@@ -91,21 +116,33 @@ public class Fingerprinter : MonoBehaviour {
 			Microphone.End (micName);
 		}
 
-		AudioClip trimmedClip = SavWav.TrimSilence(audioSource.clip, trimCutoff);	
-		if(trimmedClip == null)
+		AudioClip clip;
+		if(trim) {
+			clip = SavWav.TrimSilence(audioSource.clip, trimCutoff);
+		} 
+		else 
+		{	clip = audioSource.clip;
+
+		}
+		if(clip == null)
 		{
 			print("Clip trimmed to 0");
 			return;
-		}       
-		ResultEntry match = GetBestMatchForAudioClip(trimmedClip);
+		}
+		//SavWav.Save(DateTime.Now.ToString("yyyyMMddHHmmss"), clip);
+
+		ResultEntry match = GetBestMatchForAudioClip(clip);
 		
-		if(match != null){
-			Debug.Log("Found track " + match.Track.Title + " with confidence: " + match.Confidence);
+		if(match != null && debugText != null){
+			string text = DateTime.Now.ToString("HH:mm:ss") + ": found track! (c: " + match.Confidence.ToString("F3") + "; s:" + match.QueryMatchStartsAt.ToString("F3") + ")\n" + debugText.text;
+			debugText.text = text;
+			//Debug.Log("Found track " + match.Track.Title + " with confidence: " + match.Confidence + "; starts at:" + match.QueryMatchStartsAt);
 		}
 		else { 
-			Debug.Log("Found NO match");
+			//Debug.Log("Found NO match");
 		}
-        
+        Destroy(clip);
+
 		StartRecord();
 	}
 }
